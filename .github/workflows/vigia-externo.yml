@@ -38,11 +38,14 @@ concurrency:
 jobs:
   conferir:
     runs-on: ubuntu-latest
+    env:
+      # Fica aqui, e não dentro do passo, para um ensaio do caminho vermelho ser uma linha só.
+      URL: "https://cordiumhub.com.br.invalid"   # ENSAIO 2026-09-13: volta para .com.br em seguida
+      SIMULACAO: "SIMULAÇÃO — "                  # ENSAIO: sai junto
     steps:
       - name: Conferir o site três vezes antes de acreditar
         id: checagem
         run: |
-          URL="https://cordiumhub.com.br"
           ok=0
           codigo=000
           for tentativa in 1 2 3; do
@@ -58,6 +61,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          SIMULACAO: ${{ env.SIMULACAO }}
           NO_AR: ${{ steps.checagem.outputs.no_ar }}
           CODIGO: ${{ steps.checagem.outputs.codigo }}
           REPO: ${{ github.repository }}
@@ -81,15 +85,15 @@ jobs:
 
           if [ "$NO_AR" = "0" ] && [ -z "$aberta" ]; then
             gh issue create --repo "$REPO" --title "$TITULO" \
-              --body "Três checagens seguidas falharam, com 20s entre elas. Última resposta: HTTP $CODIGO.
+              --body "${SIMULACAO}Três checagens seguidas falharam, com 20s entre elas. Última resposta: HTTP $CODIGO.
 
             Conferido de fora do host, pelo GitHub Actions. Esta issue é o estado do vigia: ela é
             fechada sozinha quando o site voltar a responder 200."
-            avisar "🔴 **cordiumhub.com.br está fora do ar.** Três checagens seguidas falharam (HTTP $CODIGO). Conferido de fora do host."
+            avisar "${SIMULACAO}🔴 **cordiumhub.com.br está fora do ar.** Três checagens seguidas falharam (HTTP $CODIGO). Conferido de fora do host."
             echo "incidente aberto"
           elif [ "$NO_AR" = "1" ] && [ -n "$aberta" ]; then
             gh issue close "$aberta" --repo "$REPO" --comment "Voltou: HTTP 200."
-            avisar "🟢 **cordiumhub.com.br voltou.** O site responde 200 de novo."
+            avisar "${SIMULACAO}🟢 **cordiumhub.com.br voltou.** O site responde 200 de novo."
             echo "incidente fechado"
           else
             echo "sem mudança de estado (no_ar=$NO_AR, incidente aberto=${aberta:-nenhum})"
