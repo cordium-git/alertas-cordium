@@ -40,7 +40,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       # Fica aqui, e não dentro do passo, para um ensaio do caminho vermelho ser uma linha só.
-      URL: "https://cordiumhub.com.br.invalid"   # ENSAIO 2026-09-13: volta para .com.br em seguida
+      URL: "https://cordiumhub.com.br"
       SIMULACAO: "SIMULAÇÃO — "                  # ENSAIO: sai junto
     steps:
       - name: Conferir o site três vezes antes de acreditar
@@ -67,6 +67,7 @@ jobs:
           REPO: ${{ github.repository }}
         run: |
           set -u
+          falhou=0
           TITULO="cordiumhub.com.br fora do ar"
           # O estado é a issue aberta com este título. Procuro pelo título, e não por etiqueta,
           # para não depender de uma etiqueta existir no repositório.
@@ -74,13 +75,24 @@ jobs:
                      --json number,title \
                      --jq "[.[] | select(.title == \"$TITULO\")] | .[0].number // empty")
 
+          # Esta funcao FALHA de proposito quando o aviso nao sai. Na primeira versao dela,
+          # segredo ausente e recusa do Discord passavam como sucesso: o job ficava verde e o
+          # operador acreditava que o alerta havia saido. No ensaio de 13/09 ficou claro que o log
+          # do job nao pode ser lido sem direito de admin — o resultado do passo e a unica prova
+          # que sobra, e agora ele reprova.
           avisar() {
             if [ -z "${WEBHOOK:-}" ]; then
-              echo "sem DISCORD_WEBHOOK: só a issue foi usada"
-              return 0
+              echo "::error::DISCORD_WEBHOOK nao esta configurado: o aviso NAO foi enviado"
+              return 1
             fi
-            jq -Rn --arg t "$1" '{content: $t}' \
-              | curl -sS -X POST -H 'Content-Type: application/json' -d @- "$WEBHOOK" >/dev/null
+            http=$(jq -Rn --arg t "$1" '{content: $t}' \
+              | curl -sS -o /dev/null -w '%{http_code}' -X POST \
+                     -H 'Content-Type: application/json' -d @- "$WEBHOOK")
+            echo "Discord respondeu HTTP $http"
+            case "$http" in
+              2*) return 0 ;;
+              *)  echo "::error::o Discord recusou o aviso (HTTP $http)"; return 1 ;;
+            esac
           }
 
           if [ "$NO_AR" = "0" ] && [ -z "$aberta" ]; then
@@ -89,15 +101,16 @@ jobs:
 
             Conferido de fora do host, pelo GitHub Actions. Esta issue é o estado do vigia: ela é
             fechada sozinha quando o site voltar a responder 200."
-            avisar "${SIMULACAO}🔴 **cordiumhub.com.br está fora do ar.** Três checagens seguidas falharam (HTTP $CODIGO). Conferido de fora do host."
+            avisar "${SIMULACAO}🔴 **cordiumhub.com.br está fora do ar.** Três checagens seguidas falharam (HTTP $CODIGO). Conferido de fora do host." || falhou=1
             echo "incidente aberto"
           elif [ "$NO_AR" = "1" ] && [ -n "$aberta" ]; then
             gh issue close "$aberta" --repo "$REPO" --comment "Voltou: HTTP 200."
-            avisar "${SIMULACAO}🟢 **cordiumhub.com.br voltou.** O site responde 200 de novo."
+            avisar "${SIMULACAO}🟢 **cordiumhub.com.br voltou.** O site responde 200 de novo." || falhou=1
             echo "incidente fechado"
           else
             echo "sem mudança de estado (no_ar=$NO_AR, incidente aberto=${aberta:-nenhum})"
           fi
+          exit $falhou
 
       - name: Falhar o job quando o site está fora, para o app do celular avisar também
         if: steps.checagem.outputs.no_ar == '0'
