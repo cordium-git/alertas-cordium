@@ -15,8 +15,8 @@
 # aviso de volta. Assim uma queda de 4 horas dá duas mensagens, não 48. A issue aberta é o estado e
 # o registro do incidente, e o app do GitHub no celular avisa por conta própria quando o job falha.
 #
-# Sem o segredo DISCORD_WEBHOOK ele ainda funciona: abre e fecha a issue, e falha o job. O aviso no
-# celular pelo Discord é que não sai.
+# O segredo DISCORD_WEBHOOK é obrigatório: sem ele, o passo do aviso REPROVA de propósito. Um vigia
+# que fica verde sem ter avisado é pior que vigia nenhum, porque cria confiança falsa.
 
 name: vigia externo do cordiumhub
 
