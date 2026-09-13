@@ -41,7 +41,9 @@ jobs:
     env:
       # Fica aqui, e não dentro do passo, para um ensaio do caminho vermelho ser uma linha só.
       URL: "https://cordiumhub.com.br"
-      SIMULACAO: "SIMULAÇÃO — "                  # ENSAIO: sai junto
+      # Fica vazia em producao. Para ensaiar o caminho vermelho de novo, basta pôr um texto aqui
+      # e apontar a URL para um host invalido: as mensagens saem marcadas e ninguem se assusta.
+      SIMULACAO: ""
     steps:
       - name: Conferir o site três vezes antes de acreditar
         id: checagem
